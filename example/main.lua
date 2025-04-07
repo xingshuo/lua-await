@@ -79,10 +79,9 @@ local function exception_test()
 			gprintf("%s calc z is: %s", i, z)
 		end)
 	end
-	local a = 10
-	local b = {}
-	local c = a / b
-	gprintf("calc c is: %s", c)
+
+	gprintf("invalid use raw coroutine.yield")
+	coroutine.yield()
 end
 
 gprintf("----test begin----")
