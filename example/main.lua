@@ -70,6 +70,21 @@ local function test()
 	IS_RUNNING = false
 end
 
+local function exception_test()
+	for i = 1, 3 do
+		Await.Fork(function()
+			local x = 10 * i
+			local y = {}
+			local z = x + y
+			gprintf("%s calc z is: %s", i, z)
+		end)
+	end
+	local a = 10
+	local b = {}
+	local c = a / b
+	gprintf("calc c is: %s", c)
+end
+
 gprintf("----test begin----")
 Await.Run(test)
 while IS_RUNNING do
@@ -81,4 +96,8 @@ while IS_RUNNING do
 	end
 	FakeTimer.Update()
 end
+gprintf("----exception test begin----")
+local ok, errmsg = pcall(Await.Run, exception_test)
+assert(not ok)
+gprintf(errmsg)
 gprintf("----test done----")
