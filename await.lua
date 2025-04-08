@@ -2,8 +2,10 @@ local table = table
 local coroutine = coroutine
 local traceback = debug.traceback
 local tostring = tostring
-local coroutine_pool = setmetatable({}, { __mode = "kv" })
+local assert = assert
+local select = select
 
+local coroutine_pool = setmetatable({}, { __mode = "kv" })
 local sleep_coroutines = {}
 local wakeup_queue = {}
 local fork_queue = {}
@@ -108,11 +110,14 @@ function await.Sleep(timeoutInvoke, ti)
 end
 
 function await.Fork(f)
+	local _, is_main = coroutine.running()
+	assert(not is_main)
 	table.insert(fork_queue, f)
 end
 
 function await.Wait(token)
-	local co = coroutine.running()
+	local co, is_main = coroutine.running()
+	assert(not is_main)
 	token = token or co
 	assert(sleep_coroutines[token] == nil, token)
 	sleep_coroutines[token] = co

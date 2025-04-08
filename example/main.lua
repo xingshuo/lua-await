@@ -20,7 +20,6 @@ local function cliRpcCall(cb, func_name, ...)
 end
 
 local svr_methods = {}
-
 function svr_methods.on_recv_call1(a, b)
 	gprintf("Server: on_recv_call1: %s, %s", a, b)
 	return "aaa", true
