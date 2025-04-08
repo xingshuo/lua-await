@@ -26,7 +26,7 @@ local function create_co(f)
 	return co
 end
 
-local suspend
+local finally
 
 local function dispatch_wakeup()
 	while true do
@@ -36,12 +36,12 @@ local function dispatch_wakeup()
 		end
 		local co = sleep_coroutines[token]
 		if co then
-			return suspend(co, coroutine.resume(co))
+			return finally(co, coroutine.resume(co))
 		end
 	end
 end
 
-function suspend(co, result, command)
+function finally(co, result, command)
 	if not result then
 		local tb = traceback(co, tostring(command))
 		if coroutine.close then
@@ -56,8 +56,8 @@ function suspend(co, result, command)
 	end
 end
 
-local function dispatch_msg(co)
-	local err = suspend(co, coroutine.resume(co))
+local function dispatch_msg(co, ...)
+	local err = finally(co, coroutine.resume(co, ...))
 	local errors = err and {err} or {}
 	while true do
 		local f = table.remove(fork_queue, 1)
@@ -65,7 +65,7 @@ local function dispatch_msg(co)
 			break
 		end
 		local fork_co = create_co(f)
-		local fork_err = suspend(fork_co, coroutine.resume(fork_co))
+		local fork_err = finally(fork_co, coroutine.resume(fork_co))
 		if fork_err then
 			table.insert(errors, fork_err)
 		end
@@ -133,11 +133,11 @@ function await.Wakeup(token)
 	end
 end
 
-function await.Run(f)
+function await.Run(f, ...)
 	local _, is_main = coroutine.running()
 	assert(is_main)
 	local co = create_co(f)
-	dispatch_msg(co)
+	dispatch_msg(co, ...)
 end
 
 return await

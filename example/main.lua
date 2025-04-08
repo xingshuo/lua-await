@@ -26,13 +26,17 @@ function svr_methods.on_recv_call1(a, b)
 	return "aaa", true
 end
 
-function svr_methods.on_recv_call2(a, b)
-	gprintf("Server: on_recv_call2: %s, %s", a, b)
+local svr_async_methods = {}
+function svr_async_methods.on_recv_call2(a, b)
+	gprintf("Server: on_recv_call2: %s, %s will sleep 1", a, b)
+	Await.Sleep(FakeTimer.AddTimer, 1)
+	gprintf("Server: on_recv_call2: %s, %s sleep done", a, b)
 	return "bbb", false
 end
 
 local server = FakeRpc.New(SVR_RPC_ID)
 server:RegHandlers(svr_methods)
+server:RegHandlers(svr_async_methods, true)
 
 local SLEEP_TOKEN = "qwerty"
 local IS_RUNNING = true

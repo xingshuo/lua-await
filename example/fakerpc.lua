@@ -1,4 +1,5 @@
-﻿
+﻿local Await = require("await")
+
 local RPC_MSG_TYPE = {
 	Request = 1,
 	Response = 2,
@@ -17,15 +18,24 @@ function rpc_meta.New(uid)
 		id = uid,
 		msg_queue = {},
 		callbacks = {},
+		handlers = {},
+		async_handler_names = {},
 	}
 	setmetatable(o, rpc_meta)
 	rpc_objs_tbl[uid] = o
 	return o
 end
 
-function rpc_meta:RegHandlers(handlers)
+function rpc_meta:RegHandlers(handlers, async)
 	assert(type(handlers) == "table")
-	self.handlers = handlers
+	for name, func in pairs(handlers) do
+		self.handlers[name] = func
+	end
+	if async then
+		for name in pairs(handlers) do
+			self.async_handler_names[name] = true
+		end
+	end
 end
 
 function rpc_meta:Send(dest_id, func_name, ...)
@@ -59,6 +69,18 @@ function rpc_meta:_pushMsg(msg)
 	table.insert(self.msg_queue, msg)
 end
 
+local function _handleRequest(self, msg, handler)
+	local rets = {handler(table.unpack(msg.args))}
+	local dest_obj = assert(rpc_objs_tbl[msg.source], msg.source)
+	local rsp = {
+		source = self.id,
+		session = msg.session,
+		type = RPC_MSG_TYPE.Response,
+		reply = rets,
+	}
+	dest_obj:_pushMsg(rsp)
+end
+
 function rpc_meta:DispatchMsg()
 	local n = 0
 	while true do
@@ -70,15 +92,12 @@ function rpc_meta:DispatchMsg()
 		if msg.type == RPC_MSG_TYPE.Request then
 			local handler = assert(self.handlers[msg.func_name], msg.func_name)
 			if msg.session then -- AsyncCall
-				local rets = {handler(table.unpack(msg.args))}
-				local dest_obj = assert(rpc_objs_tbl[msg.source], msg.source)
-				local rsp = {
-					source = self.id,
-					session = msg.session,
-					type = RPC_MSG_TYPE.Response,
-					reply = rets,
-				}
-				dest_obj:_pushMsg(rsp)
+				if self.async_handler_names[msg.func_name] then
+					Await.Run(_handleRequest, self, msg, handler)
+				else
+					_handleRequest(self, msg, handler)
+				end
+
 			else -- Send
 				handler(table.unpack(msg.args))
 			end
